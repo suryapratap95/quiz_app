@@ -13,5 +13,9 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
-  }
+  },
+
+  "overrides": {
+  "@neondatabase/serverless": "^0.10.4"
+}
 }
