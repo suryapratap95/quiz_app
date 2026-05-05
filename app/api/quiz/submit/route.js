@@ -1,4 +1,4 @@
-import { ensureQuizTable, sql } from "@/lib/db";
+import { ensureQuizTable, query } from "@/lib/db";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,10 +21,17 @@ export async function POST(request) {
 
     await ensureQuizTable();
 
-    await sql`
-      INSERT INTO quiz_results (name, email, set_id, set_title, answers)
-      VALUES (${String(name).trim()}, ${String(email).trim().toLowerCase()}, ${setId}, ${setTitle}, ${JSON.stringify(answers)}::jsonb)
-    `;
+    await query(
+      `INSERT INTO quiz_results (name, email, set_id, set_title, answers)
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [
+        String(name).trim(),
+        String(email).trim().toLowerCase(),
+        setId,
+        setTitle,
+        JSON.stringify(answers),
+      ]
+    );
 
     return Response.json({ ok: true });
   } catch (error) {

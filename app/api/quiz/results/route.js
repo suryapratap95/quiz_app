@@ -1,4 +1,4 @@
-import { ensureQuizTable, sql } from "@/lib/db";
+import { ensureQuizTable, query } from "@/lib/db";
 
 function isAuthorized(request) {
   const configured = process.env.ADMIN_PASSWORD;
@@ -16,18 +16,18 @@ export async function GET(request) {
 
     await ensureQuizTable();
 
-    const { rows } = await sql`
-      SELECT
-        id,
-        name,
-        email,
-        set_id AS "setId",
-        set_title AS "setTitle",
-        answers,
-        created_at AS timestamp
-      FROM quiz_results
-      ORDER BY created_at DESC
-    `;
+    const { rows } = await query(
+      `SELECT
+         id,
+         name,
+         email,
+         set_id AS "setId",
+         set_title AS "setTitle",
+         answers,
+         created_at AS timestamp
+       FROM quiz_results
+       ORDER BY created_at DESC`
+    );
 
     return Response.json({ results: rows });
   } catch (error) {
@@ -45,7 +45,7 @@ export async function DELETE(request) {
     }
 
     await ensureQuizTable();
-    await sql`TRUNCATE TABLE quiz_results`;
+    await query("TRUNCATE TABLE quiz_results");
 
     return Response.json({ ok: true });
   } catch (error) {
