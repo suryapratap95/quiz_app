@@ -75,13 +75,19 @@ const SET3 = [
   { id:"3-20", topic:"RAG & Integration", q:`RecursiveCharacterTextSplitter with chunk_size=500 and chunk_overlap=50. Why is overlap important?`, opts:["It wastes storage for no reason","Overlap ensures info at chunk boundaries isn't lost — if a key sentence spans two chunks, overlap preserves context","It makes retrieval slower","Overlap is required by the OpenAI API"], ans:1 },
 ];
 
-const isRagQuestion = (q) => /rag/i.test(q.topic) || /\bRAG\b/i.test(q.q);
-const QUESTION_POOL = [...SET1, ...SET2, ...SET3].filter(
-  (q) => !isRagQuestion(q)
-);
+const EXCLUDED_QUESTION_IDS = new Set(["3-19", "3-20"]);
 
-// Shared 20-question base across all sets, excluding RAG questions
-const BASE_QUESTIONS = QUESTION_POOL.slice(0, 20);
+function isExcludedQuestion(q) {
+  return (
+    EXCLUDED_QUESTION_IDS.has(q.id) ||
+    q.topic === "RAG & Integration" ||
+    /\bRAG\b/i.test(q.q)
+  );
+}
+
+const QUESTION_POOL = [...SET1, ...SET2, ...SET3].filter(
+  (q) => !isExcludedQuestion(q)
+);
 
 // Deterministic pseudo-random generator for repeatable shuffles
 function mulberry32(seed) {
@@ -104,6 +110,51 @@ function shuffleWithSeed(array, seed) {
   }
   return arr;
 }
+
+function selectTopicBalancedBaseQuestions(pool, size, seed = 2026) {
+  const grouped = pool.reduce((acc, q) => {
+    if (!acc[q.topic]) acc[q.topic] = [];
+    acc[q.topic].push(q);
+    return acc;
+  }, {});
+
+  const topics = Object.keys(grouped);
+  if (topics.length > size) {
+    throw new Error(
+      `Cannot cover all topics: ${topics.length} topics for only ${size} questions`
+    );
+  }
+
+  // Deterministic per-topic shuffle
+  topics.forEach((topic, idx) => {
+    grouped[topic] = shuffleWithSeed(grouped[topic], seed + idx * 17);
+  });
+
+  // Pick at least one question per topic
+  const selected = topics.map((topic) => grouped[topic].shift());
+
+  // Fill remaining slots by round-robin across topics with leftovers
+  const topicOrder = shuffleWithSeed(topics, seed + 999);
+  while (selected.length < size) {
+    let progressed = false;
+    for (const topic of topicOrder) {
+      if (grouped[topic].length > 0) {
+        selected.push(grouped[topic].shift());
+        progressed = true;
+      }
+      if (selected.length === size) break;
+    }
+    if (!progressed) break;
+  }
+
+  return selected.slice(0, size);
+}
+
+// Shared 20-question base across all sets, covering all topics
+const BASE_QUESTIONS = ensureNoAdjacentSameTopic(
+  // Re-filter as defense-in-depth in case pool source changes later.
+  selectTopicBalancedBaseQuestions(QUESTION_POOL.filter((q) => !isExcludedQuestion(q)), 20)
+);
 
 function ensureNoAdjacentSameTopic(questions) {
   const arr = [...questions];
@@ -146,22 +197,22 @@ function buildSetQuestions(seedBase) {
 const ALL_SETS = [
   {
     id: "set1",
-    title: "Set 1 — Foundations & Prompt Engineering",
-    desc: "Generative AI, Prompt Engineering, Data Analysis with LLMs",
+    title: "Set A",
+    desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(1),
     color: "#2563EB",
   },
   {
     id: "set2",
-    title: "Set 2 — Text Processing & Embeddings",
-    desc: "Preprocessing, Vectorization, Transformers, Similarity",
+    title: "Set B",
+    desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(2),
     color: "#7C3AED",
   },
   {
     id: "set3",
-    title: "Set 3 — LangChain & Frameworks",
-    desc: "Components, Chains, Memory, Agents",
+    title: "Set C",
+    desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(3),
     color: "#059669",
   },
