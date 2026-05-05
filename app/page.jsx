@@ -201,6 +201,14 @@ const ALL_SETS = [
     desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(1),
     color: "#2563EB",
+    theme: {
+      headerBg: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+      headerBorder: "#93c5fd",
+      questionBg: "#f8fbff",
+      optionSelectedBg: "#dbeafe",
+      optionSelectedText: "#0f172a",
+      nextButtonBg: "#1d4ed8",
+    },
   },
   {
     id: "set2",
@@ -208,6 +216,14 @@ const ALL_SETS = [
     desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(2),
     color: "#7C3AED",
+    theme: {
+      headerBg: "#fff",
+      headerBorder: "#e2e8f0",
+      questionBg: "#fff",
+      optionSelectedBg: "#f3e8ff",
+      optionSelectedText: "#1e1b4b",
+      nextButtonBg: "#7C3AED",
+    },
   },
   {
     id: "set3",
@@ -215,6 +231,14 @@ const ALL_SETS = [
     desc: "Prompt Engineering, Text Processing & Embeddings, LangChain & Frameworks",
     questions: buildSetQuestions(3),
     color: "#059669",
+    theme: {
+      headerBg: "#fff",
+      headerBorder: "#e2e8f0",
+      questionBg: "#fff",
+      optionSelectedBg: "#dcfce7",
+      optionSelectedText: "#052e16",
+      nextButtonBg: "#059669",
+    },
   },
 ];
 
@@ -315,6 +339,14 @@ export default function QuizApp() {
   };
 
   const set = activeSet ? ALL_SETS.find(s => s.id === activeSet) : null;
+  const quizTheme = set?.theme ?? {
+    headerBg: "#fff",
+    headerBorder: "#e2e8f0",
+    questionBg: "#fff",
+    optionSelectedBg: "#eef2ff",
+    optionSelectedText: "#1e1b4b",
+    nextButtonBg: set?.color || "#2563EB",
+  };
   const answeredCount = set ? set.questions.filter(q => answers[q.id] !== undefined).length : 0;
 
   const isCode = (line) => /^(import |from |df|result|print|stop_|tokens|filtered|vec|X =|template|chain|overall|cleaned|text =|corpus)/.test(line.trim());
@@ -409,7 +441,7 @@ export default function QuizApp() {
         {view === "quiz" && set && (
           <div className="fade-up" ref={topRef}>
             {/* Quiz header */}
-            <div style={{ background: "#fff", borderRadius: 16, padding: "20px 24px", marginBottom: 20, border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,.04)" }}>
+            <div style={{ background: quizTheme.headerBg, borderRadius: 16, padding: "20px 24px", marginBottom: 20, border: `1px solid ${quizTheme.headerBorder}`, boxShadow: "0 2px 12px rgba(0,0,0,.04)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: set.color }}>{set.title}</div>
@@ -418,7 +450,7 @@ export default function QuizApp() {
                 <button onClick={goHome} style={{ fontSize: 12, color: "#94a3b8", background: "#f1f5f9", border: "none", borderRadius: 8, padding: "6px 14px" }}>Exit</button>
               </div>
               {/* Progress */}
-              <div style={{ background: "#f1f5f9", borderRadius: 99, height: 6, overflow: "hidden" }}>
+                <div style={{ background: "#e2e8f0", borderRadius: 99, height: 6, overflow: "hidden" }}>
                 <div className="progress-fill" style={{ height: "100%", borderRadius: 99, background: set.color, width: `${(answeredCount / set.questions.length) * 100}%` }} />
               </div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>{answeredCount} of {set.questions.length} answered</div>
@@ -438,7 +470,7 @@ export default function QuizApp() {
               const q = set.questions[currentQ];
               const lines = q.q.split("\n");
               return (
-                <div key={q.id} style={{ background: "#fff", borderRadius: 16, padding: "28px 28px 24px", marginBottom: 16, border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,.04)" }}>
+                <div key={q.id} style={{ background: quizTheme.questionBg, borderRadius: 16, padding: "28px 28px 24px", marginBottom: 16, border: `1px solid ${quizTheme.headerBorder}`, boxShadow: "0 2px 12px rgba(0,0,0,.04)" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
                     <span style={{ background: set.color, color: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>Q{currentQ + 1}</span>
                     <span style={{ background: "#f1f5f9", color: "#64748b", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 500 }}>{q.topic}</span>
@@ -471,13 +503,13 @@ export default function QuizApp() {
                     {q.opts.map((opt, oi) => (
                       <div key={oi} className={`opt-btn ${answers[q.id] === oi ? "selected" : ""}`}
                         onClick={() => selectAnswer(q.id, oi)}
-                        style={{ padding: "12px 16px", borderRadius: 12, cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 10, background: answers[q.id] === oi ? "#eef2ff" : "#fff" }}>
+                        style={{ padding: "12px 16px", borderRadius: 12, cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 10, background: answers[q.id] === oi ? quizTheme.optionSelectedBg : "#fff" }}>
                         <div style={{
                           width: 22, height: 22, borderRadius: "50%", flexShrink: 0, marginTop: 1,
                           border: answers[q.id] === oi ? `6px solid ${set.color}` : "2px solid #cbd5e1",
                           background: "#fff", boxSizing: "border-box",
                         }} />
-                        <span style={{ fontSize: 14, lineHeight: 1.55, color: answers[q.id] === oi ? "#1e1b4b" : "#475569" }}>
+                        <span style={{ fontSize: 14, lineHeight: 1.55, color: answers[q.id] === oi ? quizTheme.optionSelectedText : "#475569" }}>
                           {String.fromCharCode(65 + oi)}) {opt}
                         </span>
                       </div>
@@ -492,7 +524,7 @@ export default function QuizApp() {
                     </button>
                     {currentQ < set.questions.length - 1 ? (
                       <button onClick={() => setCurrentQ(p => p + 1)}
-                        style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: set.color, fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                        style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: quizTheme.nextButtonBg, fontSize: 13, fontWeight: 600, color: "#fff" }}>
                         Next →
                       </button>
                     ) : (
