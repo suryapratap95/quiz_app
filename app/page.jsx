@@ -75,13 +75,97 @@ const SET3 = [
   { id:"3-20", topic:"RAG & Integration", q:`RecursiveCharacterTextSplitter with chunk_size=500 and chunk_overlap=50. Why is overlap important?`, opts:["It wastes storage for no reason","Overlap ensures info at chunk boundaries isn't lost — if a key sentence spans two chunks, overlap preserves context","It makes retrieval slower","Overlap is required by the OpenAI API"], ans:1 },
 ];
 
-const ALL_SETS = [
-  { id: "set1", title: "Set 1 — Foundations & Prompt Engineering", desc: "Generative AI, Prompt Engineering, Data Analysis with LLMs", questions: SET1, color: "#2563EB" },
-  { id: "set2", title: "Set 2 — Text Processing & Embeddings", desc: "Preprocessing, Vectorization, Transformers, Similarity", questions: SET2, color: "#7C3AED" },
-  { id: "set3", title: "Set 3 — LangChain & Frameworks", desc: "Components, Chains, Memory, Agents, RAG", questions: SET3, color: "#059669" },
-];
+const isRagQuestion = (q) => /rag/i.test(q.topic) || /\bRAG\b/i.test(q.q);
+const QUESTION_POOL = [...SET1, ...SET2, ...SET3].filter(
+  (q) => !isRagQuestion(q)
+);
 
-const ADMIN_PASS = "trainer2026";
+// Shared 20-question base across all sets, excluding RAG questions
+const BASE_QUESTIONS = QUESTION_POOL.slice(0, 20);
+
+// Deterministic pseudo-random generator for repeatable shuffles
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t += 0x6D2B79F5;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWithSeed(array, seed) {
+  const rand = mulberry32(seed);
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function ensureNoAdjacentSameTopic(questions) {
+  const arr = [...questions];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i].topic === arr[i - 1].topic) {
+      let swapIndex = -1;
+      for (let j = i + 1; j < arr.length; j++) {
+        if (arr[j].topic !== arr[i - 1].topic) {
+          swapIndex = j;
+          break;
+        }
+      }
+      if (swapIndex !== -1) {
+        [arr[i], arr[swapIndex]] = [arr[swapIndex], arr[i]];
+      }
+    }
+  }
+  return arr;
+}
+
+function buildSetQuestions(seedBase) {
+  // 1) Shuffle base questions differently per set
+  const shuffled = shuffleWithSeed(BASE_QUESTIONS, seedBase);
+  // 2) Adjust order so no two consecutive questions share the same topic
+  const spaced = ensureNoAdjacentSameTopic(shuffled);
+
+  // 3) Per-question option shuffles per set
+  return spaced.map((q, index) => {
+    const optionIndices = q.opts.map((_, i) => i);
+    const shuffledOptionIndices = shuffleWithSeed(
+      optionIndices,
+      seedBase * 1000 + index + 1
+    );
+    const newOpts = shuffledOptionIndices.map((i) => q.opts[i]);
+    const newAns = shuffledOptionIndices.indexOf(q.ans);
+    return { ...q, opts: newOpts, ans: newAns };
+  });
+}
+
+const ALL_SETS = [
+  {
+    id: "set1",
+    title: "Set 1 — Foundations & Prompt Engineering",
+    desc: "Generative AI, Prompt Engineering, Data Analysis with LLMs",
+    questions: buildSetQuestions(1),
+    color: "#2563EB",
+  },
+  {
+    id: "set2",
+    title: "Set 2 — Text Processing & Embeddings",
+    desc: "Preprocessing, Vectorization, Transformers, Similarity",
+    questions: buildSetQuestions(2),
+    color: "#7C3AED",
+  },
+  {
+    id: "set3",
+    title: "Set 3 — LangChain & Frameworks",
+    desc: "Components, Chains, Memory, Agents",
+    questions: buildSetQuestions(3),
+    color: "#059669",
+  },
+];
 
 /* ═══════════════════════════════════════════════════════════
    STYLES
@@ -107,23 +191,15 @@ export default function QuizApp() {
   const [currentQ, setCurrentQ] = useState(0);
   const topRef = useRef(null);
 
-  // Load submissions from database
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch("/api/quiz/results", { cache: "no-store" });
-        if (!r.ok) return;
-        const data = await r.json();
-        setSubmissions(data.results ?? []);
-      } catch {}
-    })();
-  }, []);
-
-  const refreshSubmissions = async () => {
-    const r = await fetch("/api/quiz/results", { cache: "no-store" });
+  const refreshSubmissions = async (password = adminPass) => {
+    const r = await fetch("/api/quiz/results", {
+      cache: "no-store",
+      headers: password ? { "x-admin-password": password } : {},
+    });
     if (!r.ok) return;
     const data = await r.json();
     setSubmissions(data.results ?? []);
+    return true;
   };
 
   const validateEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -167,14 +243,22 @@ export default function QuizApp() {
 
   const goHome = () => { setView("home"); setActiveSet(null); setAnswers({}); setCurrentQ(0); };
 
-  const tryAdmin = () => {
-    if (adminPass === ADMIN_PASS) { setAdminErr(""); setView("admin"); }
-    else setAdminErr("Incorrect password");
+  const tryAdmin = async () => {
+    const ok = await refreshSubmissions(adminPass);
+    if (ok) {
+      setAdminErr("");
+      setView("admin");
+      return;
+    }
+    setAdminErr("Incorrect password");
   };
 
   const clearAll = async () => {
     if (confirm("Delete ALL student responses? This cannot be undone.")) {
-      const r = await fetch("/api/quiz/results", { method: "DELETE" });
+      const r = await fetch("/api/quiz/results", {
+        method: "DELETE",
+        headers: adminPass ? { "x-admin-password": adminPass } : {},
+      });
       if (r.ok) setSubmissions([]);
     }
   };
@@ -405,7 +489,7 @@ export default function QuizApp() {
               <button onClick={tryAdmin} style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: "#1e1b4b", color: "#fff", fontSize: 14, fontWeight: 600, marginTop: 8 }}>
                 Login
               </button>
-              <div style={{ marginTop: 16, fontSize: 11, color: "#cbd5e1", textAlign: "center" }}>Default password: trainer2026</div>
+              <div style={{ marginTop: 16, fontSize: 11, color: "#cbd5e1", textAlign: "center" }}>Uses `ADMIN_PASSWORD` from your environment</div>
             </div>
           </div>
         )}

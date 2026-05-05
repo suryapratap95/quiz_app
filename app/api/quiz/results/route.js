@@ -8,8 +8,12 @@ function isAuthorized(request) {
   return provided === configured;
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    if (!isAuthorized(request)) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await ensureQuizTable();
 
     const { rows } = await sql`
