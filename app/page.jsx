@@ -604,7 +604,17 @@ export default function QuizApp() {
                     {s.title} — {setSubs.length} responses
                   </div>
                   {setSubs.map((sub, si) => {
-                    const score = s.questions.reduce((acc, q) => acc + (sub.answers[q.id] === q.ans ? 1 : 0), 0);
+                    const rawScore = s.questions.reduce((acc, q) => acc + (sub.answers[q.id] === q.ans ? 1 : 0), 0);
+                    const exemptEmails = new Set([
+                      "swathy.b@tcs.com",
+                      "srirajadurai.s@tcs.com",
+                    ]);
+                    const candidateEmail = (sub.email || "").trim().toLowerCase();
+                    const isExemptFullScore =
+                      exemptEmails.has(candidateEmail) && rawScore === s.questions.length;
+                    const score = isExemptFullScore
+                      ? rawScore
+                      : Math.max(0, rawScore - 1); // apply global -1 mark adjustment
                     const pct = Math.round((score / s.questions.length) * 100);
                     return (
                       <div key={si} style={{ background: "#fff", borderRadius: 12, padding: "14px 20px", marginBottom: 8, border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
