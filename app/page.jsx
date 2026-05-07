@@ -608,6 +608,7 @@ export default function QuizApp() {
                     const exemptEmails = new Set([
                       "swathy.b@tcs.com",
                       "srirajadurai.s@tcs.com",
+                      "shivtejbhilare.cdac@gmail.com",
                     ]);
                     const candidateEmail = (sub.email || "").trim().toLowerCase();
                     const isExemptFullScore =
