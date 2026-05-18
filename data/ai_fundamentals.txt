@@ -1,0 +1,19 @@
+Artificial Intelligence (AI) is a broad field focused on building systems that can perform tasks that typically require human intelligence.
+Machine Learning (ML) is a subset of AI where models learn patterns from data.
+Deep Learning is a subset of ML that uses neural networks with many layers.
+
+Supervised learning uses labeled examples, where each input is paired with a known output.
+Common supervised tasks include classification and regression.
+
+Unsupervised learning works with unlabeled data to identify structure.
+Common unsupervised methods include clustering and dimensionality reduction.
+
+Reinforcement learning trains an agent using rewards and penalties from interactions with an environment.
+
+A train/validation/test split is used to build robust models:
+- Training set: used to fit parameters.
+- Validation set: used for tuning and model selection.
+- Test set: used once for final unbiased evaluation.
+
+Overfitting occurs when a model performs well on training data but poorly on unseen data.
+Regularization techniques such as L1, L2, dropout, and early stopping help reduce overfitting.

@@ -1,0 +1,6 @@
+question,ground_truth
+What is the relationship between AI, ML, and Deep Learning?,Machine Learning is a subset of AI, and Deep Learning is a subset of Machine Learning.
+What is overfitting and how can it be reduced?,Overfitting is when a model fits training data too closely and performs poorly on unseen data; it can be reduced with regularization methods like L1/L2, dropout, and early stopping.
+List the core steps in a typical RAG pipeline.,Ingest documents, split into chunks, create embeddings, index vectors, retrieve top-k chunks, build a context prompt, and generate an answer.
+Name two common RAG failure modes.,Common failure modes include poor chunking, weak embeddings, low top-k retrieval, and prompts that do not enforce grounded responses.
+What does the RAGAS faithfulness metric evaluate?,Faithfulness measures whether the generated answer is supported by the retrieved context.

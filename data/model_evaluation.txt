@@ -1,0 +1,21 @@
+Model evaluation should include both task performance and reliability checks.
+
+For question answering systems, exact match and F1 are common supervised metrics when labeled references are available.
+For retrieval-augmented systems, additional metrics should evaluate retrieval quality and generation grounding.
+
+RAGAS is a framework for evaluating RAG systems.
+Typical RAGAS metrics include:
+- context_precision: how relevant retrieved contexts are to the answer.
+- context_recall: how much necessary information was retrieved.
+- faithfulness: whether the answer is supported by context.
+- answer_relevancy: how well the answer addresses the question.
+
+High answer quality with low faithfulness can indicate hallucination risk.
+High faithfulness with low answer relevancy can indicate grounded but incomplete answers.
+
+Evaluation should be repeated after any major change:
+- corpus updates
+- chunking changes
+- retriever configuration changes
+- embedding model changes
+- LLM or prompt changes
