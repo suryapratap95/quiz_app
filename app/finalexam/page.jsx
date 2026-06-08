@@ -10,7 +10,7 @@ export default function FinalExamPage() {
     <QuizApp
       examId="final"
       homePath="/finalexam"
-      otherExamLink={{ href: "/", label: "← Midterm" }}
+      otherExamLink={{ href: "/wexam", label: "← WExam" }}
     />
   );
 }
