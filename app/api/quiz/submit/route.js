@@ -21,12 +21,26 @@ export async function POST(request) {
 
     await ensureQuizTable();
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const existing = await query(
+      `SELECT id FROM quiz_results WHERE email = $1 LIMIT 1`,
+      [normalizedEmail]
+    );
+
+    if (existing.rows.length > 0) {
+      return Response.json(
+        { error: "You have already submitted this exam. Only one submission is allowed per email." },
+        { status: 409 }
+      );
+    }
+
     await query(
       `INSERT INTO quiz_results (name, email, set_id, set_title, answers)
        VALUES ($1, $2, $3, $4, $5::jsonb)`,
       [
         String(name).trim(),
-        String(email).trim().toLowerCase(),
+        normalizedEmail,
         setId,
         setTitle,
         JSON.stringify(answers),
@@ -35,6 +49,13 @@ export async function POST(request) {
 
     return Response.json({ ok: true });
   } catch (error) {
+    if (error?.code === "23505") {
+      return Response.json(
+        { error: "You have already submitted this exam. Only one submission is allowed per email." },
+        { status: 409 }
+      );
+    }
+
     return Response.json(
       { error: error?.message || "Failed to save quiz result" },
       { status: 500 }

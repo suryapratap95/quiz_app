@@ -32,6 +32,9 @@ export default function QuizApp({
   const [adminPass, setAdminPass] = useState("");
   const [adminErr, setAdminErr] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSubmission, setIsCheckingSubmission] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const topRef = useRef(null);
   const formRef = useRef(null);
 
@@ -48,7 +51,17 @@ export default function QuizApp({
 
   const validateEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
-  const startQuiz = (setId) => {
+  const checkExistingSubmission = async (candidateEmail) => {
+    const r = await fetch("/api/quiz/check-submission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: candidateEmail.trim() }),
+    });
+    if (!r.ok) return { submitted: false };
+    return r.json();
+  };
+
+  const startQuiz = async (setId) => {
     if (!name.trim()) {
       setFormError("Please enter your full name to start the exam.");
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -61,12 +74,28 @@ export default function QuizApp({
     }
     const quizSet = ALL_SETS.find((s) => s.id === setId);
     if (!quizSet) return;
+
+    setIsCheckingSubmission(true);
     setFormError("");
-    setActiveSetId(setId);
-    setAnswers({});
-    setCurrentQ(0);
-    setView("quiz");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const status = await checkExistingSubmission(email);
+      if (status.submitted) {
+        setAlreadySubmitted(true);
+        setFormError("You have already submitted this exam. Only one submission is allowed per email.");
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      setAlreadySubmitted(false);
+      setActiveSetId(setId);
+      setAnswers({});
+      setCurrentQ(0);
+      setView("quiz");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setFormError("Unable to verify submission status. Please try again.");
+    } finally {
+      setIsCheckingSubmission(false);
+    }
   };
 
   useEffect(() => {
@@ -79,28 +108,48 @@ export default function QuizApp({
 
   const submitQuiz = async () => {
     const currentSet = ALL_SETS.find((s) => s.id === activeSetId);
-    if (!currentSet) return;
+    if (!currentSet || isSubmitting) return;
     if (Object.keys(answers).length < currentSet.questions.length) {
       alert(`Please answer all ${currentSet.questions.length} questions before submitting.`);
       return;
     }
-    const r = await fetch("/api/quiz/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        email: email.trim(),
-        setId: activeSetId,
-        setTitle: `${EXAMS.find((e) => e.id === currentSet.examId)?.label ?? "Exam"} · ${currentSet.title}`,
-        answers: { ...answers },
-      }),
-    });
-    if (!r.ok) {
+
+    setIsSubmitting(true);
+    try {
+      const r = await fetch("/api/quiz/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          setId: activeSetId,
+          setTitle: `${EXAMS.find((e) => e.id === currentSet.examId)?.label ?? "Exam"} · ${currentSet.title}`,
+          answers: { ...answers },
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 409) {
+        setAlreadySubmitted(true);
+        alert(data.error || "You have already submitted this exam. Only one submission is allowed per email.");
+        setView("home");
+        setActiveSetId(null);
+        return;
+      }
+
+      if (!r.ok) {
+        alert(data.error || "Unable to submit quiz right now. Please try again.");
+        return;
+      }
+
+      setAlreadySubmitted(true);
+      await refreshSubmissions();
+      setView("submitted");
+    } catch {
       alert("Unable to submit quiz right now. Please try again.");
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-    await refreshSubmissions();
-    setView("submitted");
   };
 
   const goHome = () => { setView("home"); setActiveSetId(null); setAnswers({}); setCurrentQ(0); };
@@ -147,6 +196,8 @@ export default function QuizApp({
         ::selection { background: #6366f140; }
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        @keyframes spin { to { transform: rotate(360deg) } }
+        .submit-spinner { width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle }
         .fade-up { animation: fadeUp .45s ease both; }
         .card-hover { transition: transform .2s, box-shadow .2s; }
         .card-hover:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.1) !important; }
@@ -201,10 +252,15 @@ export default function QuizApp({
               />
               <input
                 type="email" placeholder="yourname@email.com" value={email}
-                onChange={e => { setEmail(e.target.value); setFormError(""); }}
+                onChange={e => { setEmail(e.target.value); setFormError(""); setAlreadySubmitted(false); }}
                 style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: "2px solid " + (formError ? "#ef4444" : "#e2e8f0"), fontSize: 15, fontFamily: font, background: "#fafbfc" }}
               />
               {formError && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 6, fontWeight: 500 }}>{formError}</div>}
+              {alreadySubmitted && !formError && (
+                <div style={{ color: "#b45309", fontSize: 12, marginTop: 6, fontWeight: 500 }}>
+                  This email has already submitted the exam. Only one attempt is allowed.
+                </div>
+              )}
             </div>
 
             {/* Exam sections */}
@@ -217,7 +273,7 @@ export default function QuizApp({
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {exam.sets.map((s, i) => (
-                <button type="button" key={s.id} className="card-hover fade-up" style={{ animationDelay: `${i * .08}s`, background: "#fff", borderRadius: 16, padding: "24px 28px", border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,.04)", cursor: "pointer", position: "relative", overflow: "hidden", width: "100%", textAlign: "left" }} onClick={() => startQuiz(s.id)}>
+                <button type="button" key={s.id} disabled={alreadySubmitted || isCheckingSubmission} className="card-hover fade-up" style={{ animationDelay: `${i * .08}s`, background: "#fff", borderRadius: 16, padding: "24px 28px", border: "1px solid #e2e8f0", boxShadow: "0 2px 12px rgba(0,0,0,.04)", cursor: alreadySubmitted || isCheckingSubmission ? "not-allowed" : "pointer", opacity: alreadySubmitted || isCheckingSubmission ? 0.55 : 1, position: "relative", overflow: "hidden", width: "100%", textAlign: "left" }} onClick={() => startQuiz(s.id)}>
                   <div style={{ position: "absolute", top: 0, left: 0, width: 5, height: "100%", background: s.color, borderRadius: "16px 0 0 16px" }} />
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
@@ -237,14 +293,24 @@ export default function QuizApp({
             </div>
 
             <div style={{ textAlign: "center", marginTop: 32, fontSize: 12, color: "#94a3b8" }}>
-              Enter your name and email above, then click a form to begin. Answers will not be shown after submission.
+              {isCheckingSubmission
+                ? "Checking submission status..."
+                : "Enter your name and email above, then click a set to begin. One submission per email. Answers will not be shown after submission."}
             </div>
           </div>
         )}
 
         {/* ───── QUIZ ───── */}
         {view === "quiz" && currentSet && (
-          <div className="fade-up" ref={topRef}>
+          <div className="fade-up" ref={topRef} style={{ position: "relative" }}>
+            {isSubmitting && (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(255,255,255,0.75)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ background: "#fff", borderRadius: 16, padding: "24px 32px", border: "1px solid #e2e8f0", boxShadow: "0 8px 32px rgba(0,0,0,.12)", display: "flex", alignItems: "center", gap: 12, fontSize: 15, fontWeight: 600, color: "#1e1b4b" }}>
+                  <span className="submit-spinner" style={{ border: "2px solid #e2e8f0", borderTopColor: "#6366f1", width: 18, height: 18 }} />
+                  Processing request...
+                </div>
+              </div>
+            )}
             {/* Quiz header */}
             <div style={{ background: quizTheme.headerBg, borderRadius: 16, padding: "20px 24px", marginBottom: 20, border: `1px solid ${quizTheme.headerBorder}`, boxShadow: "0 2px 12px rgba(0,0,0,.04)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -334,9 +400,16 @@ export default function QuizApp({
                         Next →
                       </button>
                     ) : (
-                      <button onClick={submitQuiz}
-                        style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: answeredCount === currentSet.questions.length ? "#16a34a" : "#94a3b8", fontSize: 13, fontWeight: 600, color: "#fff" }}>
-                        Submit Quiz ✓
+                      <button onClick={submitQuiz} disabled={isSubmitting || answeredCount !== currentSet.questions.length}
+                        style={{ padding: "10px 24px", borderRadius: 10, border: "none", background: answeredCount === currentSet.questions.length && !isSubmitting ? "#16a34a" : "#94a3b8", fontSize: 13, fontWeight: 600, color: "#fff", opacity: isSubmitting ? 0.85 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        {isSubmitting ? (
+                          <>
+                            <span className="submit-spinner" />
+                            Processing request...
+                          </>
+                        ) : (
+                          "Submit Quiz ✓"
+                        )}
                       </button>
                     )}
                   </div>
