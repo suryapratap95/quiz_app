@@ -16,7 +16,7 @@ const fontLink = "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wgh
    ═══════════════════════════════════════════════════════════ */
 
 export default function QuizApp({
-  examId = "midterm",
+  examId = "wexam",
   homePath = "/",
   otherExamLink = null,
 }) {
