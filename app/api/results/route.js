@@ -1,4 +1,5 @@
 import { ensureSchema, query } from "@/lib/db";
+import { WEXAM_RESULTS_ORDER_SQL } from "@/lib/wexam-groups";
 
 function isAuthorized(request) {
   const configured = process.env.ADMIN_PASSWORD;
@@ -22,7 +23,7 @@ export async function GET(request) {
               e.color as exam_color
        FROM quiz_results qr
        LEFT JOIN exams e ON e.id = qr.exam_id
-       ORDER BY qr.created_at DESC`
+       ORDER BY ${WEXAM_RESULTS_ORDER_SQL}, qr.created_at DESC`
     );
 
     return Response.json({ results: rows });

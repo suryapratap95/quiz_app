@@ -1,4 +1,9 @@
 import { ensureSchema, query } from "@/lib/db";
+import {
+  isWexamGroupId,
+  WEXAM_RESULTS_ORDER_SQL,
+  WEXAM_SET_IDS,
+} from "@/lib/wexam-groups";
 
 function isAuthorized(request) {
   const configured = process.env.ADMIN_PASSWORD;
@@ -17,11 +22,23 @@ export async function GET(request, { params }) {
     await ensureSchema();
     const { examId } = await params;
 
-    const { rows } = await query(
-      `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
-       FROM quiz_results WHERE exam_id = $1 ORDER BY created_at DESC`,
-      [examId]
-    );
+    const { rows } = isWexamGroupId(examId)
+      ? (
+          await query(
+            `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
+             FROM quiz_results
+             WHERE exam_id = ANY($1::text[])
+             ORDER BY ${WEXAM_RESULTS_ORDER_SQL}`,
+            [WEXAM_SET_IDS]
+          )
+        )
+      : await query(
+          `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
+           FROM quiz_results
+           WHERE exam_id = $1
+           ORDER BY LOWER(name) ASC`,
+          [examId]
+        );
 
     return Response.json({ results: rows });
   } catch (error) {

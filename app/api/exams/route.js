@@ -1,4 +1,13 @@
 import { ensureSchema, query } from "@/lib/db";
+const EXAM_LIST_ORDER_SQL = `
+  CASE id
+    WHEN 'wexam-a' THEN 0
+    WHEN 'wexam-b' THEN 1
+    WHEN 'wexam-c' THEN 2
+    ELSE 3
+  END,
+  created_at DESC
+`;
 
 function isAuthorized(request) {
   const configured = process.env.ADMIN_PASSWORD;
@@ -15,9 +24,9 @@ export async function GET(request) {
 
     const { rows: exams } = await query(
       isAdmin
-        ? `SELECT * FROM exams ORDER BY created_at DESC`
+        ? `SELECT * FROM exams ORDER BY ${EXAM_LIST_ORDER_SQL}`
         : `SELECT id, title, description, duration, color, show_results, allow_multiple_attempts
-           FROM exams WHERE is_active = true ORDER BY created_at DESC`
+           FROM exams WHERE is_active = true ORDER BY ${EXAM_LIST_ORDER_SQL}`
     );
 
     // Attach question count

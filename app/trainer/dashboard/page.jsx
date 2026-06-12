@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  groupExamsForDisplay,
+  groupResultsByWexamSet,
+  getWexamSetLabel,
+  isWexamSetId,
+  sortResultsByWexamSet,
+} from "@/lib/wexam-groups";
 import {
   Sparkles,
   Plus,
@@ -110,9 +117,18 @@ export default function TrainerDashboard() {
         headers: headers(),
       });
       const d = await r.json();
-      setExamResults((p) => ({ ...p, [examId]: d.results || [] }));
+      setExamResults((p) => ({
+        ...p,
+        [examId]: sortResultsByWexamSet(d.results || []),
+      }));
     } catch {}
   };
+
+  const displayExams = useMemo(() => groupExamsForDisplay(exams), [exams]);
+  const sortedAllResults = useMemo(
+    () => sortResultsByWexamSet(allResults),
+    [allResults]
+  );
 
   const createExam = async () => {
     if (!newExam.title.trim()) return;
@@ -345,13 +361,173 @@ export default function TrainerDashboard() {
               </div>
             )}
 
-            {exams.map((exam) => {
-              const isExpanded = expandedExam === exam.id;
-              const results = examResults[exam.id];
+            {displayExams.map((item) => {
+              const isGroup = item.type === "group";
+              const exam = isGroup ? null : item;
+              const group = isGroup ? item : null;
+              const cardId = isGroup ? group.id : exam.id;
+              const isExpanded = expandedExam === cardId;
+              const results = examResults[cardId];
+
+              const renderSubmissionRow = (sub) => {
+                const pct =
+                  sub.total > 0
+                    ? Math.round((sub.score / sub.total) * 100)
+                    : 0;
+                return (
+                  <div
+                    key={sub.id}
+                    className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {sub.name}
+                      </div>
+                      <div className="text-xs text-gray-400">{sub.email}</div>
+                      <div className="mt-0.5 text-xs text-gray-300">
+                        {new Date(sub.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`text-xl font-extrabold ${
+                          pct >= 80
+                            ? "text-emerald-500"
+                            : pct >= 50
+                            ? "text-amber-500"
+                            : "text-red-500"
+                        }`}
+                      >
+                        {sub.score}/{sub.total}
+                      </div>
+                      <div className="text-xs text-gray-400">({pct}%)</div>
+                    </div>
+                  </div>
+                );
+              };
+
+              const renderResults = () => {
+                if (!results) {
+                  return (
+                    <div className="py-4 text-center">
+                      <Loader2
+                        size={20}
+                        className="mx-auto animate-spin text-gray-300"
+                      />
+                    </div>
+                  );
+                }
+
+                if (results.length === 0) {
+                  return (
+                    <p className="py-4 text-center text-sm text-gray-400">
+                      No submissions yet
+                    </p>
+                  );
+                }
+
+                if (isGroup) {
+                  const { groups } = groupResultsByWexamSet(results);
+                  return (
+                    <div className="space-y-5">
+                      {groups.map(
+                        (setGroup) =>
+                          setGroup.results.length > 0 && (
+                            <div key={setGroup.setId}>
+                              <h5 className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                                {setGroup.label} ({setGroup.results.length})
+                              </h5>
+                              <div className="space-y-2">
+                                {setGroup.results.map(renderSubmissionRow)}
+                              </div>
+                            </div>
+                          )
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {results.map(renderSubmissionRow)}
+                  </div>
+                );
+              };
+
+              if (isGroup) {
+                return (
+                  <div
+                    key={cardId}
+                    className="animate-fade-up overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+                  >
+                    <div className="flex items-center justify-between p-5">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-sm"
+                          style={{ background: group.color || "#0891B2" }}
+                        >
+                          <BookOpen size={18} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-gray-900">
+                              {group.title}
+                            </h3>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                group.is_active
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-gray-100 text-gray-400"
+                              }`}
+                            >
+                              {group.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 flex items-center gap-4 text-xs text-gray-400">
+                            <span>Sets A, B, C</span>
+                            <span>{group.question_count || 0} questions</span>
+                            <span>{group.duration}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (isExpanded) {
+                            setExpandedExam(null);
+                          } else {
+                            setExpandedExam(cardId);
+                            loadExamResults(cardId);
+                          }
+                        }}
+                        className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-50"
+                        title="View results"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp size={16} />
+                        ) : (
+                          <ChevronDown size={16} />
+                        )}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-gray-50 bg-gray-50/50 p-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <Users size={15} />
+                            Submissions ({results?.length || 0})
+                          </h4>
+                        </div>
+                        {renderResults()}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <div
-                  key={exam.id}
+                  key={cardId}
                   className="animate-fade-up overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
                 >
                   {/* Exam header */}
@@ -647,64 +823,7 @@ export default function TrainerDashboard() {
                         )}
                       </div>
 
-                      {!results && (
-                        <div className="py-4 text-center">
-                          <Loader2
-                            size={20}
-                            className="mx-auto animate-spin text-gray-300"
-                          />
-                        </div>
-                      )}
-
-                      {results?.length === 0 && (
-                        <p className="py-4 text-center text-sm text-gray-400">
-                          No submissions yet
-                        </p>
-                      )}
-
-                      {results?.length > 0 && (
-                        <div className="space-y-2">
-                          {results.map((sub) => {
-                            const pct = sub.total > 0
-                              ? Math.round((sub.score / sub.total) * 100)
-                              : 0;
-                            return (
-                              <div
-                                key={sub.id}
-                                className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm"
-                              >
-                                <div>
-                                  <div className="text-sm font-semibold text-gray-900">
-                                    {sub.name}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {sub.email}
-                                  </div>
-                                  <div className="mt-0.5 text-xs text-gray-300">
-                                    {new Date(sub.timestamp).toLocaleString()}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`text-xl font-extrabold ${
-                                      pct >= 80
-                                        ? "text-emerald-500"
-                                        : pct >= 50
-                                        ? "text-amber-500"
-                                        : "text-red-500"
-                                    }`}
-                                  >
-                                    {sub.score}/{sub.total}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    ({pct}%)
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {renderResults()}
                     </div>
                   )}
                 </div>
@@ -739,7 +858,7 @@ export default function TrainerDashboard() {
                           Student
                         </th>
                         <th className="px-5 py-3 text-left font-semibold text-gray-600">
-                          Exam
+                          Exam / Set
                         </th>
                         <th className="px-5 py-3 text-center font-semibold text-gray-600">
                           Score
@@ -753,7 +872,7 @@ export default function TrainerDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {allResults.map((r) => {
+                      {sortedAllResults.map((r) => {
                         const pct =
                           r.total > 0
                             ? Math.round((r.score / r.total) * 100)
@@ -772,14 +891,16 @@ export default function TrainerDashboard() {
                               </div>
                             </td>
                             <td className="px-5 py-3">
-                              <span
-                                className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
-                                style={{
-                                  background: r.exam_color || "#6366f1",
-                                }}
-                              >
-                                {r.exam_title}
-                              </span>
+                              <div className="font-medium text-gray-800">
+                                {isWexamSetId(r.exam_id)
+                                  ? "WExam Assessment"
+                                  : r.exam_title}
+                              </div>
+                              {isWexamSetId(r.exam_id) && (
+                                <div className="mt-0.5 text-xs font-semibold text-indigo-600">
+                                  {getWexamSetLabel(r.exam_id)}
+                                </div>
+                              )}
                             </td>
                             <td className="px-5 py-3 text-center font-bold text-gray-900">
                               {r.score}/{r.total}

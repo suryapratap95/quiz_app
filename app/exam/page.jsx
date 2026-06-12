@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import { groupExamsForDisplay, getWexamSetLabel } from "@/lib/wexam-groups";
 
 export default function ExamListPage() {
   const [exams, setExams] = useState([]);
@@ -22,6 +23,8 @@ export default function ExamListPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const displayExams = useMemo(() => groupExamsForDisplay(exams), [exams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
@@ -65,7 +68,7 @@ export default function ExamListPage() {
         )}
 
         {/* Empty */}
-        {!loading && exams.length === 0 && (
+        {!loading && displayExams.length === 0 && (
           <div className="animate-fade-up rounded-2xl border border-dashed border-gray-200 bg-white/50 py-20 text-center">
             <FileText size={48} className="mx-auto mb-4 text-gray-300" />
             <h3 className="mb-2 text-lg font-semibold text-gray-700">
@@ -79,52 +82,110 @@ export default function ExamListPage() {
 
         {/* Exam cards */}
         <div className="grid gap-5 sm:grid-cols-2">
-          {exams.map((exam, i) => (
-            <Link
-              key={exam.id}
-              href={`/exam/${exam.id}`}
-              className="group animate-fade-up no-underline"
-              style={{ animationDelay: `${i * 0.05}s` }}
-            >
-              <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-                {/* Color accent */}
+          {displayExams.map((item, i) => {
+            if (item.type === "group") {
+              return (
                 <div
-                  className="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl"
-                  style={{ background: exam.color || "#6366f1" }}
-                />
-
-                <div className="pl-4">
-                  <div className="mb-3 flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
-                        {exam.title}
-                      </h3>
-                      {exam.description && (
-                        <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                          {exam.description}
-                        </p>
-                      )}
-                    </div>
-                    <ArrowRight
-                      size={18}
-                      className="mt-1 shrink-0 text-gray-300 transition group-hover:translate-x-1 group-hover:text-indigo-500"
+                  key={item.id}
+                  className="group animate-fade-up sm:col-span-2"
+                  style={{ animationDelay: `${i * 0.05}s` }}
+                >
+                  <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div
+                      className="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl"
+                      style={{ background: item.color || "#0891B2" }}
                     />
-                  </div>
-
-                  <div className="flex items-center gap-5 text-xs font-medium text-gray-400">
-                    <span className="flex items-center gap-1.5">
-                      <BookOpen size={13} />
-                      {exam.question_count || 0} Questions
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Clock size={13} />
-                      {exam.duration || "30 min"}
-                    </span>
+                    <div className="pl-4">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {item.title}
+                        </h3>
+                        {item.description && (
+                          <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mb-5 flex items-center gap-5 text-xs font-medium text-gray-400">
+                        <span className="flex items-center gap-1.5">
+                          <BookOpen size={13} />
+                          {item.question_count || 0} Questions
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={13} />
+                          {item.duration || "30 min"}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {item.sets.map((set) => (
+                          <Link
+                            key={set.id}
+                            href={`/exam/${set.id}`}
+                            className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3 no-underline transition hover:border-indigo-200 hover:bg-indigo-50/40"
+                          >
+                            <span className="text-sm font-semibold text-gray-800">
+                              {getWexamSetLabel(set.id) || set.title}
+                            </span>
+                            <ArrowRight
+                              size={16}
+                              className="text-gray-300 transition group-hover:text-indigo-500"
+                            />
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              );
+            }
+
+            const exam = item;
+            return (
+              <Link
+                key={exam.id}
+                href={`/exam/${exam.id}`}
+                className="group animate-fade-up no-underline"
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
+                  <div
+                    className="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl"
+                    style={{ background: exam.color || "#6366f1" }}
+                  />
+
+                  <div className="pl-4">
+                    <div className="mb-3 flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
+                          {exam.title}
+                        </h3>
+                        {exam.description && (
+                          <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                            {exam.description}
+                          </p>
+                        )}
+                      </div>
+                      <ArrowRight
+                        size={18}
+                        className="mt-1 shrink-0 text-gray-300 transition group-hover:translate-x-1 group-hover:text-indigo-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-5 text-xs font-medium text-gray-400">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen size={13} />
+                        {exam.question_count || 0} Questions
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock size={13} />
+                        {exam.duration || "30 min"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
