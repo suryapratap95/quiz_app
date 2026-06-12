@@ -10,7 +10,7 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import { groupExamsForDisplay, getWexamSetLabel } from "@/lib/wexam-groups";
+import { groupExamsForDisplay } from "@/lib/wexam-groups";
 
 export default function ExamListPage() {
   const [exams, setExams] = useState([]);
@@ -85,28 +85,38 @@ export default function ExamListPage() {
           {displayExams.map((item, i) => {
             if (item.type === "group") {
               return (
-                <div
+                <Link
                   key={item.id}
-                  className="group animate-fade-up sm:col-span-2"
+                  href={`/exam/${item.id}`}
+                  className="group animate-fade-up no-underline"
                   style={{ animationDelay: `${i * 0.05}s` }}
                 >
-                  <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                  <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
                     <div
                       className="absolute left-0 top-0 h-full w-1.5 rounded-l-2xl"
                       style={{ background: item.color || "#0891B2" }}
                     />
                     <div className="pl-4">
-                      <div className="mb-4">
-                        <h3 className="text-lg font-bold text-gray-900">
-                          {item.title}
-                        </h3>
-                        {item.description && (
-                          <p className="mt-1 text-sm leading-relaxed text-gray-500">
-                            {item.description}
+                      <div className="mb-3 flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600">
+                            {item.title}
+                          </h3>
+                          {item.description && (
+                            <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                              {item.description}
+                            </p>
+                          )}
+                          <p className="mt-2 text-xs font-medium text-indigo-500">
+                            3 sets · Choose yours on the next step
                           </p>
-                        )}
+                        </div>
+                        <ArrowRight
+                          size={18}
+                          className="mt-1 shrink-0 text-gray-300 transition group-hover:translate-x-1 group-hover:text-indigo-500"
+                        />
                       </div>
-                      <div className="mb-5 flex items-center gap-5 text-xs font-medium text-gray-400">
+                      <div className="flex items-center gap-5 text-xs font-medium text-gray-400">
                         <span className="flex items-center gap-1.5">
                           <BookOpen size={13} />
                           {item.question_count || 0} Questions
@@ -116,26 +126,9 @@ export default function ExamListPage() {
                           {item.duration || "30 min"}
                         </span>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {item.sets.map((set) => (
-                          <Link
-                            key={set.id}
-                            href={`/exam/${set.id}`}
-                            className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3 no-underline transition hover:border-indigo-200 hover:bg-indigo-50/40"
-                          >
-                            <span className="text-sm font-semibold text-gray-800">
-                              {getWexamSetLabel(set.id) || set.title}
-                            </span>
-                            <ArrowRight
-                              size={16}
-                              className="text-gray-300 transition group-hover:text-indigo-500"
-                            />
-                          </Link>
-                        ))}
-                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             }
 
