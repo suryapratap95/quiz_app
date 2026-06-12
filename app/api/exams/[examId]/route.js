@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
     const { examId } = await params;
 
     const { rows: exams } = await query(
-      `SELECT * FROM exams WHERE id = $1`,
+      `SELECT id, title, description, duration, color, created_by, is_active, allow_multiple_attempts, show_results, parent_exam_id, set_label, created_at, updated_at FROM exams WHERE id = $1`,
       [examId]
     );
 

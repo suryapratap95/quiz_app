@@ -24,8 +24,14 @@ import {
 
 export default function TakeExamPage({ examId }) {
   const router = useRouter();
-  const backHref = isWexamSetId(examId) ? `/exam/${WEXAM_GROUP_ID}` : "/exam";
-  const backLabel = isWexamSetId(examId) ? "← Choose Set" : "← All Exams";
+  // Determine back navigation based on exam type
+  const [parentGroupId, setParentGroupId] = useState(null);
+  const backHref = isWexamSetId(examId)
+    ? `/exam/${WEXAM_GROUP_ID}`
+    : parentGroupId
+    ? `/exam/${parentGroupId}`
+    : "/exam";
+  const backLabel = isWexamSetId(examId) || parentGroupId ? "← Choose Set" : "← All Exams";
 
   const [phase, setPhase] = useState("loading"); // loading | register | quiz | submitting | submitted | error
   const [exam, setExam] = useState(null);
@@ -53,6 +59,10 @@ export default function TakeExamPage({ examId }) {
       .then((d) => {
         setExam(d.exam);
         setQuestions(d.questions || []);
+        // Set parent group for back navigation
+        if (d.exam?.parent_exam_id) {
+          setParentGroupId(d.exam.parent_exam_id);
+        }
         setPhase("register");
       })
       .catch((e) => {
@@ -221,12 +231,12 @@ export default function TakeExamPage({ examId }) {
                   background: `linear-gradient(135deg, ${exam.color || "#6366f1"}15, ${exam.color || "#6366f1"}08)`,
                 }}
               >
-                {isWexamSetId(examId) && (
+                {(isWexamSetId(examId) || exam.set_label) && (
                   <span
                     className="mb-2 inline-block rounded-lg px-2.5 py-0.5 text-xs font-bold text-white"
                     style={{ background: exam.color || "#0891B2" }}
                   >
-                    {getWexamSetLabel(examId)}
+                    {getWexamSetLabel(examId) || exam.set_label}
                   </span>
                 )}
                 <h1 className="mb-2 text-2xl font-extrabold text-gray-900">
