@@ -22,23 +22,45 @@ export async function GET(request, { params }) {
     await ensureSchema();
     const { examId } = await params;
 
-    const { rows } = isWexamGroupId(examId)
-      ? (
-          await query(
-            `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
-             FROM quiz_results
-             WHERE exam_id = ANY($1::text[])
-             ORDER BY ${WEXAM_RESULTS_ORDER_SQL}`,
-            [WEXAM_SET_IDS]
-          )
-        )
-      : await query(
+    let rows;
+
+    if (isWexamGroupId(examId)) {
+      // Legacy wexam group
+      ({ rows } = await query(
+        `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
+         FROM quiz_results
+         WHERE exam_id = ANY($1::text[])
+         ORDER BY ${WEXAM_RESULTS_ORDER_SQL}`,
+        [WEXAM_SET_IDS]
+      ));
+    } else {
+      // Check if this is a dynamic group ID (parent_exam_id)
+      const { rows: groupSets } = await query(
+        `SELECT id FROM exams WHERE parent_exam_id = $1`,
+        [examId]
+      );
+
+      if (groupSets.length > 0) {
+        // Dynamic group — fetch results for all sets
+        const setIds = groupSets.map((s) => s.id);
+        ({ rows } = await query(
+          `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
+           FROM quiz_results
+           WHERE exam_id = ANY($1::text[])
+           ORDER BY exam_id ASC, LOWER(name) ASC`,
+          [setIds]
+        ));
+      } else {
+        // Single exam
+        ({ rows } = await query(
           `SELECT id, name, email, exam_id, exam_title, answers, score, total, percentage, created_at as timestamp
            FROM quiz_results
            WHERE exam_id = $1
            ORDER BY LOWER(name) ASC`,
           [examId]
-        );
+        ));
+      }
+    }
 
     return Response.json({ results: rows });
   } catch (error) {

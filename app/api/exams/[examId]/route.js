@@ -71,6 +71,7 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE /api/exams/:examId — delete exam and its questions (admin only)
+// Also deletes all sibling sets if this is a group parent ID
 export async function DELETE(request, { params }) {
   try {
     if (!isAuthorized(request)) {
@@ -80,9 +81,25 @@ export async function DELETE(request, { params }) {
     await ensureSchema();
     const { examId } = await params;
 
-    await query(`DELETE FROM quiz_results WHERE exam_id = $1`, [examId]);
-    await query(`DELETE FROM questions WHERE exam_id = $1`, [examId]);
-    await query(`DELETE FROM exams WHERE id = $1`, [examId]);
+    // Check if this is a dynamic group ID (parent_exam_id)
+    const { rows: groupSets } = await query(
+      `SELECT id FROM exams WHERE parent_exam_id = $1`,
+      [examId]
+    );
+
+    if (groupSets.length > 0) {
+      // Delete all sets in the group
+      for (const set of groupSets) {
+        await query(`DELETE FROM quiz_results WHERE exam_id = $1`, [set.id]);
+        await query(`DELETE FROM questions WHERE exam_id = $1`, [set.id]);
+        await query(`DELETE FROM exams WHERE id = $1`, [set.id]);
+      }
+    } else {
+      // Delete single exam
+      await query(`DELETE FROM quiz_results WHERE exam_id = $1`, [examId]);
+      await query(`DELETE FROM questions WHERE exam_id = $1`, [examId]);
+      await query(`DELETE FROM exams WHERE id = $1`, [examId]);
+    }
 
     return Response.json({ ok: true });
   } catch (error) {

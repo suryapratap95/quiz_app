@@ -20,13 +20,18 @@ export async function GET(request) {
     const { rows } = await query(
       `SELECT qr.id, qr.name, qr.email, qr.exam_id, qr.exam_title,
               qr.score, qr.total, qr.percentage, qr.created_at as timestamp,
-              e.color as exam_color
+              e.color as exam_color, e.parent_exam_id, e.set_label
        FROM quiz_results qr
        LEFT JOIN exams e ON e.id = qr.exam_id
        ORDER BY ${WEXAM_RESULTS_ORDER_SQL}, qr.created_at DESC`
     );
 
-    return Response.json({ results: rows });
+    // Also return exams list for grouping
+    const { rows: exams } = await query(
+      `SELECT id, title, color, parent_exam_id, set_label FROM exams`
+    );
+
+    return Response.json({ results: rows, exams });
   } catch (error) {
     return Response.json({ error: error?.message || "Failed to fetch results" }, { status: 500 });
   }

@@ -53,10 +53,40 @@ export async function POST(request) {
 
     await ensureSchema();
     const body = await request.json();
-    const { title, description, duration, color, show_results, allow_multiple_attempts } = body;
+    const { title, description, duration, color, show_results, allow_multiple_attempts, create_sets, set_mode } = body;
 
     if (!title?.trim()) {
       return Response.json({ error: "Exam title is required" }, { status: 400 });
+    }
+
+    // If create_sets is true, create 3 sets (A, B, C) as a group
+    if (create_sets) {
+      const groupId = `examgrp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const setLabels = ["Set A", "Set B", "Set C"];
+      const setColors = [color || "#0891B2", "#4F46E5", "#0D9488"];
+      const setIds = [];
+
+      for (let i = 0; i < 3; i++) {
+        const setId = `${groupId}-${String.fromCharCode(97 + i)}`;
+        await query(
+          `INSERT INTO exams (id, title, description, duration, color, show_results, allow_multiple_attempts, parent_exam_id, set_label)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            setId,
+            `${title.trim()} — ${setLabels[i]}`,
+            description?.trim() || "",
+            duration?.trim() || "30 min",
+            setColors[i],
+            show_results ?? false,
+            allow_multiple_attempts ?? false,
+            groupId,
+            setLabels[i],
+          ]
+        );
+        setIds.push(setId);
+      }
+
+      return Response.json({ groupId, setIds, ok: true, sets: true });
     }
 
     const id = `exam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
