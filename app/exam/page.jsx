@@ -108,7 +108,7 @@ export default function ExamListPage() {
                             </p>
                           )}
                           <p className="mt-2 text-xs font-medium text-indigo-500">
-                            3 sets · Choose yours on the next step
+                            {item.sets?.length || 3} sets · Choose yours on the next step
                           </p>
                         </div>
                         <ArrowRight
