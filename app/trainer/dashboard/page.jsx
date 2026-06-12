@@ -82,6 +82,11 @@ export default function TrainerDashboard() {
   // Shuffle state
   const [shuffling, setShuffling] = useState(null);
 
+  // Preview questions for sets
+  const [previewExamId, setPreviewExamId] = useState(null);
+  const [previewQuestions, setPreviewQuestions] = useState([]);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
   const headers = () => ({ "x-admin-password": adminPass });
 
   useEffect(() => {
@@ -226,6 +231,16 @@ export default function TrainerDashboard() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // Find the parent group for an exam set ID
+  const findGroupForSet = (setExamId) => {
+    return displayExams.find(
+      (item) =>
+        item.type === "group" &&
+        item.isDynamic &&
+        item.sets?.some((s) => s.id === setExamId)
+    );
+  };
+
   const saveUploadedQuestions = async () => {
     if (!uploadResult?.questions?.length || !uploadResult.examId) return;
     setSavingQuestions(true);
@@ -235,11 +250,43 @@ export default function TrainerDashboard() {
         headers: { "Content-Type": "application/json", ...headers() },
         body: JSON.stringify({ questions: uploadResult.questions }),
       });
+
+      // Auto-shuffle if this is a dynamic group set
+      const group = findGroupForSet(uploadResult.examId);
+      if (group && group.isDynamic) {
+        // Auto-shuffle to sibling sets
+        try {
+          await fetch(`/api/exams/${group.groupId}/shuffle-sets`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers() },
+            body: JSON.stringify({ sourceExamId: uploadResult.examId }),
+          });
+        } catch {}
+      }
+
       setUploadResult(null);
       setUploadingFor(null);
       await loadExams();
     } catch {}
     setSavingQuestions(false);
+  };
+
+  const loadPreview = async (examId) => {
+    if (previewExamId === examId) {
+      setPreviewExamId(null);
+      setPreviewQuestions([]);
+      return;
+    }
+    setLoadingPreview(true);
+    setPreviewExamId(examId);
+    try {
+      const r = await fetch(`/api/exams/${examId}`, { headers: headers() });
+      const d = await r.json();
+      setPreviewQuestions(d.questions || []);
+    } catch {
+      setPreviewQuestions([]);
+    }
+    setLoadingPreview(false);
   };
 
   const addManualQuestion = async (examId) => {
@@ -553,13 +600,19 @@ export default function TrainerDashboard() {
                             <span>{group.question_count || 0} questions</span>
                             <span>{group.duration}</span>
                           </div>
-                          {/* Show individual sets */}
+                          {/* Show individual sets with preview buttons */}
                           {isDynamic && group.sets && (
                             <div className="mt-2 flex flex-wrap gap-2">
                               {group.sets.map((s) => (
-                                <span
+                                <button
                                   key={s.id}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-gray-100 bg-gray-50 px-2 py-1 text-xs"
+                                  onClick={() => loadPreview(s.id)}
+                                  className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition hover:border-indigo-300 hover:bg-indigo-50/50 ${
+                                    previewExamId === s.id
+                                      ? "border-indigo-300 bg-indigo-50/50"
+                                      : "border-gray-100 bg-gray-50"
+                                  }`}
+                                  title={`Preview questions in ${s.set_label}`}
                                 >
                                   <span
                                     className="inline-block h-2 w-2 rounded-full"
@@ -571,7 +624,8 @@ export default function TrainerDashboard() {
                                   <span className="text-gray-400">
                                     {s.question_count || 0}q
                                   </span>
-                                </span>
+                                  <Eye size={10} className="text-gray-400" />
+                                </button>
                               ))}
                             </div>
                           )}
@@ -704,7 +758,7 @@ export default function TrainerDashboard() {
                             auto-extracted to {group.sets[0].set_label}.
                           </p>
                           <p className="mb-4 text-xs text-indigo-600 font-medium">
-                            💡 After uploading, use the Shuffle button to distribute questions to other sets.
+                            💡 Questions will be saved to Set A and <strong>automatically shuffled</strong> to Set B & C with randomized question & option order.
                           </p>
 
                           <div className="flex items-center gap-3">
@@ -777,11 +831,12 @@ export default function TrainerDashboard() {
                                             className="animate-spin"
                                           />
                                         ) : (
-                                          <CheckCircle2 size={14} />
+                                          <>
+                                            <CheckCircle2 size={14} />
+                                            <Shuffle size={14} />
+                                          </>
                                         )}
-                                        Save{" "}
-                                        {uploadResult.questions?.length || 0}{" "}
-                                        Questions
+                                        Save & Shuffle to All Sets
                                       </button>
                                       <button
                                         onClick={() => setUploadResult(null)}
@@ -880,6 +935,76 @@ export default function TrainerDashboard() {
                               </button>
                             </div>
                           </div>
+                        </div>
+                      )}
+
+                    {/* Preview questions panel */}
+                    {isDynamic &&
+                      previewExamId &&
+                      group.sets.some((s) => s.id === previewExamId) && (
+                        <div className="border-t border-gray-50 bg-purple-50/30 p-5">
+                          <div className="mb-3 flex items-center justify-between">
+                            <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                              <Eye size={15} />
+                              Preview: {group.sets.find((s) => s.id === previewExamId)?.set_label || "Set"} Questions
+                              ({previewQuestions.length})
+                            </h4>
+                            <button
+                              onClick={() => {
+                                setPreviewExamId(null);
+                                setPreviewQuestions([]);
+                              }}
+                              className="rounded-lg px-3 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100"
+                            >
+                              Close Preview
+                            </button>
+                          </div>
+                          {loadingPreview ? (
+                            <div className="py-4 text-center">
+                              <Loader2
+                                size={20}
+                                className="mx-auto animate-spin text-gray-300"
+                              />
+                            </div>
+                          ) : previewQuestions.length === 0 ? (
+                            <p className="py-4 text-center text-sm text-gray-400">
+                              No questions in this set yet
+                            </p>
+                          ) : (
+                            <div className="max-h-80 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-white p-3">
+                              {previewQuestions.map((q, i) => {
+                                const opts =
+                                  typeof q.options === "string"
+                                    ? JSON.parse(q.options)
+                                    : q.options;
+                                return (
+                                  <div
+                                    key={q.id || i}
+                                    className="rounded-lg bg-gray-50 p-3 text-sm"
+                                  >
+                                    <div className="mb-2 font-medium text-gray-800">
+                                      Q{i + 1}. {q.question_text}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      {opts.map((opt, oi) => (
+                                        <div
+                                          key={oi}
+                                          className={`rounded-md px-2 py-1 text-xs ${
+                                            oi === q.correct_answer
+                                              ? "bg-emerald-50 font-semibold text-emerald-700"
+                                              : "text-gray-500"
+                                          }`}
+                                        >
+                                          {String.fromCharCode(65 + oi)}. {opt}
+                                          {oi === q.correct_answer && " ✓"}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
 
