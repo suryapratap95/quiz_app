@@ -25,7 +25,7 @@ export async function GET(request) {
     const { rows: exams } = await query(
       isAdmin
         ? `SELECT * FROM exams ORDER BY ${EXAM_LIST_ORDER_SQL}`
-        : `SELECT id, title, description, duration, color, show_results, allow_multiple_attempts, parent_exam_id, set_label
+        : `SELECT id, title, description, duration, color, is_active, show_results, allow_multiple_attempts, parent_exam_id, set_label
            FROM exams WHERE is_active = true ORDER BY ${EXAM_LIST_ORDER_SQL}`
     );
 

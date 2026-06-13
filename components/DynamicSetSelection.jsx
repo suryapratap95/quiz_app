@@ -111,7 +111,7 @@ export default function DynamicSetSelection({ groupId }) {
                   key={set.id}
                   href={`/exam/${set.id}`}
                   className={`group block no-underline ${
-                    set.is_active ? "" : "pointer-events-none opacity-50"
+                    set.is_active === false ? "pointer-events-none opacity-50" : ""
                   }`}
                 >
                   <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
