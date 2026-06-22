@@ -19,8 +19,8 @@ export default function TrainerLoginPage() {
     setError("");
 
     try {
-      // Test auth by fetching exams with admin header
-      const r = await fetch("/api/exams", {
+      // Test auth against results endpoint which properly enforces password
+      const r = await fetch("/api/results", {
         headers: { "x-admin-password": password },
       });
 
