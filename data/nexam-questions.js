@@ -1,5 +1,5 @@
 /**
- * NExam pool — 20 questions across 10 curriculum topics.
+ * Mid Session Exam pool — 20 questions across 10 curriculum topics.
  * Covers: Word2Vec/Doc2Vec, Transformer Embeddings, Document Clustering/FAISS/Ethical AI,
  * LangChain Foundations, LangChain Caching/Token Tracking, Banking FAQ Mini-Project,
  * LangChain Advanced Prompts, Conversational Memory, Custom Tools & Function Calling,

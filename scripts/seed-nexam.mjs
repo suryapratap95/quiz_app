@@ -1,5 +1,5 @@
 /**
- * Seed NExam (next exam) into the database.
+ * Seed Mid Session Exam (next exam) into the database.
  * Creates 3 exam sets (A/B/C) and inserts all 20 questions shuffled per set.
  *
  * Usage:
@@ -314,9 +314,9 @@ function shuffleOptions(question, seed) {
 
 // ── Seed ─────────────────────────────────────────────────────────────────────
 const SETS = [
-  { id: "nexam-a", label: "Set A", title: "NExam — Set A", seed: 301, color: "#7C3AED" },
-  { id: "nexam-b", label: "Set B", title: "NExam — Set B", seed: 302, color: "#DB2777" },
-  { id: "nexam-c", label: "Set C", title: "NExam — Set C", seed: 303, color: "#D97706" },
+  { id: "nexam-a", label: "Set A", title: "Mid Session Exam — Set A", seed: 301, color: "#7C3AED" },
+  { id: "nexam-b", label: "Set B", title: "Mid Session Exam — Set B", seed: 302, color: "#DB2777" },
+  { id: "nexam-c", label: "Set C", title: "Mid Session Exam — Set C", seed: 303, color: "#D97706" },
 ];
 
 const PARENT_ID = "nexam";
@@ -387,7 +387,7 @@ async function run() {
       }
       console.log(`✓ Seeded ${shuffled.length} questions into ${set.id}`);
     }
-    console.log("Done! NExam sets A/B/C are ready.");
+    console.log("Done! Mid Session Exam sets A/B/C are ready.");
   } finally {
     client.release();
     await pool.end();
