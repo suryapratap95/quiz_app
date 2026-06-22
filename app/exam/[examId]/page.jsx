@@ -12,18 +12,14 @@ export default function ExamPage() {
   const { examId } = useParams();
   const isWexam = isWexamGroupId(examId);
 
-  // null = not yet resolved, only relevant for "examgrp-" prefixed IDs
+  // null = not yet resolved — requires an API check
   const [resolvedType, setResolvedType] = useState(() => {
     if (isWexam) return "wexam-group";
-    if (!examId?.startsWith("examgrp-")) return "take-exam";
-    return null; // needs async resolution
+    return null; // always resolve via API for all other IDs
   });
 
-  // For IDs starting with "examgrp-", we need to check if it's a group parent
-  // or an individual set (e.g. "examgrp-xxx" is the group, "examgrp-xxx-a" is a set).
-  // The group parent ID is never stored as an exam row — only set IDs are.
-  // So we check the DB: if this exam ID exists as a row, it's a set → TakeExamPage;
-  // if it returns 404, it's a group parent → DynamicSetSelection.
+  // Check the DB: if this exam ID exists as a row it's a set → TakeExamPage;
+  // if it returns 404 or no exam, it's a group parent → DynamicSetSelection.
   useEffect(() => {
     if (resolvedType !== null) return; // already resolved
 
@@ -32,20 +28,16 @@ export default function ExamPage() {
         if (r.ok) {
           return r.json().then((data) => {
             if (data.exam) {
-              // This exam ID exists as a row — it's a set, show TakeExamPage
               setResolvedType("take-exam");
             } else {
-              // No exam found, treat as group
               setResolvedType("dynamic-group");
             }
           });
         } else {
-          // 404 — not an exam row, it's a group parent ID
           setResolvedType("dynamic-group");
         }
       })
       .catch(() => {
-        // On error, treat as group
         setResolvedType("dynamic-group");
       });
   }, [examId, resolvedType]);
