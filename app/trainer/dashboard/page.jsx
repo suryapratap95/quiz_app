@@ -121,6 +121,11 @@ export default function TrainerDashboard() {
   const loadAllResults = async () => {
     try {
       const r = await fetch("/api/results", { headers: headers() });
+      if (r.status === 401) {
+        sessionStorage.removeItem("trainer_pass");
+        router.push("/trainer");
+        return;
+      }
       const d = await r.json();
       setAllResults(d.results || []);
       setAllExams(d.exams || []);
