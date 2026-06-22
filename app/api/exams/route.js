@@ -1,10 +1,13 @@
 import { ensureSchema, query } from "@/lib/db";
 const EXAM_LIST_ORDER_SQL = `
   CASE id
-    WHEN 'wexam-a' THEN 0
-    WHEN 'wexam-b' THEN 1
-    WHEN 'wexam-c' THEN 2
-    ELSE 3
+    WHEN 'nexam-a' THEN 0
+    WHEN 'nexam-b' THEN 1
+    WHEN 'nexam-c' THEN 2
+    WHEN 'wexam-a' THEN 3
+    WHEN 'wexam-b' THEN 4
+    WHEN 'wexam-c' THEN 5
+    ELSE 6
   END,
   created_at DESC
 `;
