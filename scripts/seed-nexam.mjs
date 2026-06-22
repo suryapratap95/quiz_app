@@ -8,13 +8,26 @@
  * Requires POSTGRES_URL or POSTGRES_URL_NON_POOLING in environment.
  */
 import { createPool } from "@vercel/postgres";
-import { config } from "dotenv";
-import { resolve } from "path";
+import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
+import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-config({ path: resolve(__dirname, "../.env.local") });
+
+// Manually load .env.local
+const envPath = resolve(__dirname, "../.env.local");
+try {
+  const lines = readFileSync(envPath, "utf-8").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    if (!process.env[key]) process.env[key] = val;
+  }
+} catch {}
 
 const pool = createPool({
   connectionString:
